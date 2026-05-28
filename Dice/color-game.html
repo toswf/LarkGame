@@ -190,12 +190,20 @@
         .color-panel {
             background: #4a4a4e;
             border-radius: 12px;
-            padding: 14px;
+            padding: 12px;
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            gap: 10px;
             border: 1px solid #555;
             position: relative;
+            transition: border-color 0.15s ease;
+        }
+        .color-panel.win-flash {
+            animation: borderFlash 0.3s ease-in-out 5;
+        }
+        @keyframes borderFlash {
+            0%, 100% { border-color: #555; box-shadow: 0 0 0 rgba(255, 215, 0, 0); }
+            50% { border-color: #ffd700; box-shadow: 0 0 15px rgba(255, 215, 0, 0.6); }
         }
         .color-btn-wrapper {
             position: relative;
@@ -205,13 +213,13 @@
         }
         .color-btn {
             width: 100%;
-            aspect-ratio: 1;
-            border-radius: 10px;
+            aspect-ratio: 4/3;
+            border-radius: 8px;
             border: 2px solid transparent;
             cursor: pointer;
             transition: all 0.15s ease;
             position: relative;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
             overflow: visible;
         }
         .color-btn:hover { transform: translateY(-2px) scale(1.03); box-shadow: 0 5px 14px rgba(0,0,0,0.4); }
@@ -227,13 +235,13 @@
 
         .chip-stack {
             position: absolute;
-            top: 50%; left: 50%;
+            top: 45%; left: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 5;
         }
         .chip {
-            width: 28px; height: 28px;
+            width: 24px; height: 24px;
             border-radius: 50%;
             background: #8e44ad;
             border: 2px solid #6c3483;
@@ -243,29 +251,29 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 10px;
+            font-size: 9px;
             font-weight: bold;
             color: #fff;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
         .chip:nth-child(1) { margin-top: 0; }
-        .chip:nth-child(2) { margin-top: -6px; }
-        .chip:nth-child(3) { margin-top: -12px; }
-        .chip:nth-child(4) { margin-top: -18px; }
-        .chip:nth-child(5) { margin-top: -24px; }
-        .chip:nth-child(6) { margin-top: -30px; }
-        .chip:nth-child(7) { margin-top: -36px; }
-        .chip:nth-child(8) { margin-top: -42px; }
+        .chip:nth-child(2) { margin-top: -5px; }
+        .chip:nth-child(3) { margin-top: -10px; }
+        .chip:nth-child(4) { margin-top: -15px; }
+        .chip:nth-child(5) { margin-top: -20px; }
+        .chip:nth-child(6) { margin-top: -25px; }
+        .chip:nth-child(7) { margin-top: -30px; }
+        .chip:nth-child(8) { margin-top: -35px; }
 
         .bet-amount-label {
-            margin-top: 6px;
-            font-size: 12px;
+            margin-top: 5px;
+            font-size: 11px;
             font-weight: bold;
             color: #ffd700;
             background: rgba(0,0,0,0.3);
-            padding: 2px 8px;
-            border-radius: 10px;
-            min-width: 50px;
+            padding: 2px 6px;
+            border-radius: 8px;
+            min-width: 45px;
             text-align: center;
             opacity: 0;
             transition: opacity 0.2s;

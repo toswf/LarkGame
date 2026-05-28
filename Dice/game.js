@@ -566,6 +566,20 @@ function showToast(message) {
     }, 3000);
 }
 
+/** 触发中奖边框闪烁效果 */
+function triggerWinFlash() {
+    const colorPanel = document.querySelector('.color-panel');
+    if (colorPanel) {
+        // 添加动画类
+        colorPanel.classList.add('win-flash');
+        
+        // 动画结束后移除类（0.3s * 5 次 = 1.5s）
+        setTimeout(() => {
+            colorPanel.classList.remove('win-flash');
+        }, 1500);
+    }
+}
+
 /** 拖动条状态 */
 let _sliderVisible = false;
 
@@ -1034,6 +1048,9 @@ function finishRoll(results) {
         resultBar.className = 'result-bar win';
         showHint('恭喜！赢得 ' + totalWin + ' 金币！', 'win');
         spawnCoins();
+        
+        // 触发中奖边框闪烁效果
+        triggerWinFlash();
     } else {
         resultBar.textContent = '结果：' + resultColors + '，未命中';
         resultBar.className = 'result-bar lose';
