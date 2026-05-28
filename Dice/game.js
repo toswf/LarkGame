@@ -14,11 +14,137 @@ const COLORS = [
 ];
 
 let _betAmount = 10;    // 每次点击的筹码价值
-let _betQuantity = 'inf' // 投注数量：'inf'=∞(1份)、10、100
-let balance = 1000;
-let bets = [0, 0, 0, 0, 0, 0];
+let _betQuantity = 'inf' // 投注数量：'inf'=∞(1 份)、10、100
+let balance = 0;         // 玩家余额，由 initPlayerData() 初始化
+let bets = [0, 0, 0, 0, 0, 0];  // 每种颜色的下注次数
+let betAmounts = [0, 0, 0, 0, 0, 0];  // 每种颜色的实际下注总金额
 let isRolling = false;
 let _cleanupTimer = null; // finishRoll 的延迟清理定时器，防止与下次 rollDice 冲突
+
+// ============================================================
+//  玩家状态与配置
+// ============================================================
+
+/**
+ * 玩家付费状态
+ * 【注意】实际应由服务端下发，此处暂时使用默认值
+ * true = 已付费，false = 未付费
+ */
+let isRechargeUser = false;
+
+/**
+ * 未付费玩家下注配置
+ * 【注意】实际应由服务端下发，此处暂时使用默认配置值
+ */
+const UNRECHARGED_CONFIG = {
+    minBetAmount: 10,    // 最小下注金额
+    maxBetAmount: 1000,  // 最大下注金额
+    maxBetTimes: 3       // 最大下注次数（颜色数量）
+};
+
+/**
+ * 当前玩家的下注配置（由 initPlayerData 初始化）
+ * @type {{minBetAmount: number, maxBetAmount: number, maxBetTimes: number}}
+ */
+let betConfig = { ...UNRECHARGED_CONFIG };
+
+/**
+ * 计算默认下注金额（玩家资产的 1/10，向下取整到十位）
+ * @param {number} balance - 玩家余额
+ * @param {number} minBetAmount - 最小下注金额
+ * @returns {number} 默认下注金额
+ */
+function calculateDefaultBetAmount(balance, minBetAmount) {
+    // 玩家资产的 1/10，向下取整到十位
+    let defaultAmount = Math.floor(balance / 10 / 10) * 10;
+    
+    // 如果低于最小下注金额，则使用最小值
+    if (defaultAmount < minBetAmount) {
+        defaultAmount = minBetAmount;
+    }
+    
+    return defaultAmount;
+}
+
+/**
+ * 初始化玩家数据
+ * 【注意】所有参数实际应由服务器下发，此处暂时使用默认值
+ * @param {Object} options - 初始化选项
+ * @param {number} options.initialAmount - 初始余额，默认 1000
+ * @param {boolean} options.isRecharge - 是否已付费，默认 false
+ * @param {Object} options.config - 下注配置（可选，不传则根据 isRecharge 自动设置）
+ * @param {number} options.config.minBetAmount - 最小下注金额
+ * @param {number} options.config.maxBetAmount - 最大下注金额
+ * @param {number} options.config.maxBetTimes - 最大下注次数
+ */
+function initPlayerData(options = {}) {
+    const {
+        initialAmount = 1000,
+        isRecharge = false,
+        config
+    } = options;
+    
+    balance = initialAmount;
+    isRechargeUser = isRecharge;
+    
+    // 设置下注配置
+    if (config) {
+        // 使用自定义配置
+        betConfig = { ...config };
+    } else {
+        // 根据付费状态自动设置配置
+        if (isRecharge) {
+            // 已付费玩家无限制
+            betConfig = {
+                minBetAmount: 10,
+                maxBetAmount: balance,
+                maxBetTimes: Infinity
+            };
+        } else {
+            // 未付费玩家使用限制配置
+            betConfig = { ...UNRECHARGED_CONFIG };
+        }
+    }
+    
+    // 设置默认下注金额（玩家资产的 1/10，向下取整到十位）
+    _betAmount = calculateDefaultBetAmount(balance, betConfig.minBetAmount);
+    
+    // 重置下注数据
+    bets = [0, 0, 0, 0, 0, 0];
+    betAmounts = [0, 0, 0, 0, 0, 0];
+    
+    updateBetAmountDisplay();
+    updateUI();
+}
+
+/**
+ * 获取当前下注配置
+ * @returns {{minBetAmount: number, maxBetAmount: number, maxBetTimes: number}}
+ */
+function getBetConfig() {
+    return betConfig;
+}
+
+/**
+ * 设置玩家付费状态（测试用）
+ * @param {boolean} isRecharge - 是否已付费
+ */
+function setRechargeStatus(isRecharge) {
+    isRechargeUser = isRecharge;
+    // 重新计算配置
+    if (isRecharge) {
+        betConfig = {
+            minBetAmount: 10,
+            maxBetAmount: balance,
+            maxBetTimes: Infinity
+        };
+    } else {
+        betConfig = { ...UNRECHARGED_CONFIG };
+    }
+    updateUI();
+    console.log(`付费状态已切换：${isRecharge ? '已付费' : '未付费'}`);
+    console.log('当前配置：', betConfig);
+}
 
 // 三个骰子的6面色顺序（各不相同）
 const DICE_FACES = [
@@ -380,6 +506,24 @@ function updateBetAmountDisplay() {
 
 /** 设置投注金额 */
 function setBetAmount(val) {
+    const config = getBetConfig();
+    
+    // 检查最小金额限制
+    if (val < config.minBetAmount) {
+        val = config.minBetAmount;
+        if (!isRechargeUser) {
+            showToast(`The minimum bet amount for un recharge user is ${config.minBetAmount}`);
+        }
+    }
+    
+    // 检查最大金额限制
+    if (val > config.maxBetAmount) {
+        val = config.maxBetAmount;
+        if (!isRechargeUser) {
+            showToast(`The maximum bet amount for un recharge user is ${config.maxBetAmount}`);
+        }
+    }
+    
     _betAmount = val;
     updateBetAmountDisplay();
     // 高亮选中的快捷按钮
@@ -388,16 +532,166 @@ function setBetAmount(val) {
     });
 }
 
+/** 显示 Toast 提示 */
+function showToast(message) {
+    // 创建 Toast 元素（如果不存在）
+    let toast = document.getElementById('toast-message');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast-message';
+        toast.style.position = 'fixed';
+        toast.style.bottom = '80px';
+        toast.style.left = '50%';
+        toast.style.transform = 'translateX(-50%)';
+        toast.style.background = 'rgba(0,0,0,0.85)';
+        toast.style.color = '#fff';
+        toast.style.padding = '12px 24px';
+        toast.style.borderRadius = '8px';
+        toast.style.fontSize = '14px';
+        toast.style.zIndex = '9999';
+        toast.style.whiteSpace = 'nowrap';
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        document.body.appendChild(toast);
+    }
+    
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    
+    // 3 秒后自动消失
+    setTimeout(() => {
+        toast.style.opacity = '0';
+    }, 3000);
+}
+
+/** 拖动条状态 */
+let _sliderVisible = false;
+
+/** 切换拖动条显示/隐藏 */
+function toggleSlider() {
+    const config = getBetConfig();
+    
+    // 未付费玩家不能拖动
+    if (!isRechargeUser) {
+        showToast(`The minimum bet amount for un recharge user is ${config.minBetAmount}`);
+        return;
+    }
+    
+    _sliderVisible = !_sliderVisible;
+    const slider = document.getElementById('betSlider');
+    if (slider) {
+        slider.style.display = _sliderVisible ? 'block' : 'none';
+    }
+    
+    // 如果展开，更新滑块位置和范围
+    if (_sliderVisible) {
+        updateSliderRange();
+        updateSliderPosition();
+    }
+}
+
+/** 更新拖动条的范围（min/max） */
+function updateSliderRange() {
+    const config = getBetConfig();
+    const slider = document.getElementById('betSliderInput');
+    const sliderMinLabel = document.getElementById('sliderMin');
+    const sliderMaxLabel = document.getElementById('sliderMax');
+    
+    if (slider) {
+        slider.min = config.minBetAmount;
+        slider.max = Math.min(config.maxBetAmount, balance);
+        slider.step = 10;
+        
+        // 更新标签
+        if (sliderMinLabel) sliderMinLabel.textContent = `Min: ${config.minBetAmount}`;
+        if (sliderMaxLabel) sliderMaxLabel.textContent = `Max: ${Math.min(config.maxBetAmount, balance)}`;
+    }
+}
+
+/** 更新拖动条位置 */
+function updateSliderPosition() {
+    const slider = document.getElementById('betSliderInput');
+    if (slider) {
+        slider.value = _betAmount;
+        updateSliderBackground(slider.value);
+    }
+}
+
+/** 更新滑块背景渐变 */
+function updateSliderBackground(value) {
+    const slider = document.getElementById('betSliderInput');
+    if (slider) {
+        const min = parseInt(slider.min) || 10;
+        const max = parseInt(slider.max) || 1000;
+        const percentage = ((value - min) / (max - min)) * 100;
+        slider.style.setProperty('--slider-position', percentage + '%');
+    }
+}
+
+/** 拖动条变化处理 */
+function onSliderChange(value) {
+    const config = getBetConfig();
+    let newVal = parseInt(value);
+    
+    // 确保在限制范围内
+    newVal = Math.max(config.minBetAmount, Math.min(config.maxBetAmount, newVal));
+    
+    setBetAmount(newVal);
+    updateSliderBackground(newVal);
+}
+
+/** 点击非拖动条区域关闭 */
+function setupSliderCloseHandler() {
+    document.addEventListener('click', function(event) {
+        const slider = document.getElementById('betSlider');
+        const arrows = document.querySelectorAll('.arrow-btn');
+        
+        if (_sliderVisible && slider && !slider.contains(event.target)) {
+            // 检查是否点击在箭头上
+            let clickedArrow = false;
+            arrows.forEach(arrow => {
+                if (arrow.contains(event.target)) clickedArrow = true;
+            });
+            
+            if (!clickedArrow) {
+                _sliderVisible = false;
+                slider.style.display = 'none';
+            }
+        }
+    });
+}
+
+// 初始化时设置关闭处理器
+setupSliderCloseHandler();
+
 /** 调整投注金额（1/2、2×、+1、-1） */
 function adjustBetAmount(factor) {
+    const config = getBetConfig();
+    
+    // 未付费玩家禁用所有调整按钮
+    if (!isRechargeUser) {
+        showToast(`The ${factor === 0.5 ? 'minimum' : 'maximum'} bet amount for un recharge user is ${factor === 0.5 ? config.minBetAmount : config.maxBetAmount}`);
+        return;
+    }
+    
     let newVal;
     if (factor === 0.5) {
-        newVal = Math.max(1, Math.round(_betAmount / 2));
+        // 1/2：减半
+        newVal = Math.max(config.minBetAmount, Math.round(_betAmount / 2));
     } else if (factor === 2) {
-        newVal = _betAmount * 2;
+        // 2x：翻倍
+        newVal = Math.min(config.maxBetAmount, _betAmount * 2);
     } else {
-        newVal = Math.max(1, _betAmount + factor);
+        // 上下箭头：+1 或 -1
+        newVal = Math.max(config.minBetAmount, _betAmount + factor);
     }
+    
+    // 检查是否超过最大限制
+    if (newVal > config.maxBetAmount) {
+        newVal = config.maxBetAmount;
+        showToast(`The maximum bet amount for un recharge user is ${config.maxBetAmount}`);
+    }
+    
     setBetAmount(newVal);
 }
 
@@ -415,14 +709,31 @@ function setBetQuantity(val) {
 
 function addBet(btn) {
     if (isRolling) return;
+    
+    const config = getBetConfig();
     const idx = parseInt(btn.dataset.index);
     const qty = _betQuantity === 'inf' ? 1 : _betQuantity;
     const cost = qty * _betAmount;
+    
+    // 1.3 下注次数限制检查
+    if (!isRechargeUser) {
+        // 统计当前已下注的颜色数量
+        const betColorsCount = bets.filter(b => b > 0).length;
+        // 如果这个颜色还没下注，且已达到最大次数限制
+        if (bets[idx] === 0 && betColorsCount >= config.maxBetTimes) {
+            showToast(`Your maximum times of bets is ${config.maxBetTimes}`);
+            return;
+        }
+    }
+    
+    // 余额检查
     if (balance < cost) {
         showHint('余额不足！', 'lose');
         return;
     }
+    
     bets[idx] += qty;
+    betAmounts[idx] += cost;  // 记录实际下注金额
     balance -= cost;
     updateUI();
     btn.style.transform = 'scale(0.95)';
@@ -431,25 +742,44 @@ function addBet(btn) {
 
 function clearAllBets() {
     if (isRolling) return;
-    if (bets.every(b => b === 0)) return;
-    const total = bets.reduce((a, b) => a + b, 0) * _betAmount;
-    balance += total;
+    
+    // 计算总下注金额
+    const totalBet = betAmounts.reduce((a, b) => a + b, 0);
+    if (totalBet === 0) return;
+    
+    // 退还总下注金额
+    balance += totalBet;
+    
+    // 重置下注
     bets = [0, 0, 0, 0, 0, 0];
+    betAmounts = [0, 0, 0, 0, 0, 0];
+    
+    // 已付费玩家需要更新最大下注金额（因为余额变化了）
+    if (isRechargeUser) {
+        betConfig.maxBetAmount = balance;
+    }
+    
+    // 重新计算默认下注金额
+    const config = getBetConfig();
+    _betAmount = calculateDefaultBetAmount(balance, config.minBetAmount);
+    updateBetAmountDisplay();
+    
     updateUI();
     showHint('已清除所有下注', '');
 }
 
 function updateUI() {
-    const total = bets.reduce((a, b) => a + b, 0) * _betAmount;
+    const config = getBetConfig();
+    const totalBet = betAmounts.reduce((a, b) => a + b, 0);
     document.getElementById('balanceDisplay').textContent = balance.toFixed(2);
-    document.getElementById('totalBet').textContent = total;
+    document.getElementById('totalBet').textContent = totalBet;
 
     for (let i = 0; i < 6; i++) {
         const chipStack = document.getElementById('chips-' + i);
         const label     = document.getElementById('label-' + i);
         const btn      = document.querySelector('.color-btn[data-index="' + i + '"]');
         chipStack.innerHTML = '';
-        if (bets[i] > 0) {
+        if (betAmounts[i] > 0) {
             const showCount = Math.min(bets[i], 8);
             for (let c = 0; c < showCount; c++) {
                 const chip = document.createElement('div');
@@ -460,7 +790,7 @@ function updateUI() {
                 }
                 chipStack.appendChild(chip);
             }
-            label.textContent = (bets[i] * _betAmount).toFixed(2);
+            label.textContent = betAmounts[i].toFixed(2);
             label.classList.add('show');
             btn.style.borderColor = 'rgba(255,255,255,0.6)';
         } else {
@@ -471,6 +801,32 @@ function updateUI() {
 
     const hasBet = bets.some(b => b > 0);
     document.getElementById('rollBtn').disabled = !hasBet || isRolling;
+    
+    // 1.2 下注金额限制：未付费玩家禁用快捷按钮
+    if (!isRechargeUser) {
+        // 禁用 1/2、2x、Min、Max 按钮
+        document.querySelectorAll('.op-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+        // 禁用上下箭头按钮
+        document.querySelectorAll('.arrow-btn').forEach(btn => {
+            btn.disabled = true;
+        });
+        // 隐藏拖动条
+        const slider = document.getElementById('betSlider');
+        if (slider) slider.style.display = 'none';
+        _sliderVisible = false;
+    } else {
+        // 已付费玩家启用按钮
+        document.querySelectorAll('.op-btn').forEach(btn => {
+            btn.disabled = false;
+        });
+        document.querySelectorAll('.arrow-btn').forEach(btn => {
+            btn.disabled = false;
+        });
+        // 更新拖动条范围
+        updateSliderRange();
+    }
 }
 
 function showHint(text, type) {
@@ -531,23 +887,23 @@ function finishRoll(results) {
     let winMessages = [];
 
     for (let ci = 0; ci < 6; ci++) {
-        if (bets[ci] === 0) continue;
+        if (betAmounts[ci] === 0) continue;
         const mc  = results.filter(r => r === ci).length;
-        const bet = bets[ci] * _betAmount;
+        const bet = betAmounts[ci];  // 使用实际下注金额
         let win = 0;
         if (mc === 1)      win = bet * 2;
         else if (mc === 2) win = bet * 3;
-        else if (mc === 3) win = Math.floor(bet * 16.7);
+        else if (mc === 3) win = Math.floor(bet * 16);
         if (win > 0) {
             totalWin += win;
-            const mult = mc === 1 ? 2 : mc === 2 ? 3 : 16.7;
+            const mult = mc === 1 ? 2 : mc === 2 ? 3 : 16;
             winMessages.push(COLORS[ci].label + '中' + mc + '个 x' + mult);
         }
     }
 
     let maxMatch = 0;
     for (let ci = 0; ci < 6; ci++) {
-        if (bets[ci] === 0) continue;
+        if (betAmounts[ci] === 0) continue;
         maxMatch = Math.max(maxMatch, results.filter(r => r === ci).length);
     }
     if (maxMatch >= 1) document.getElementById('check1').classList.add('checked');
@@ -558,6 +914,10 @@ function finishRoll(results) {
 
     if (totalWin > 0) {
         balance += totalWin;
+        // 已付费玩家需要更新最大下注金额
+        if (isRechargeUser) {
+            betConfig.maxBetAmount = balance;
+        }
         resultBar.textContent = '🎉 ' + winMessages.join('，') + ' 共获得 ' + totalWin;
         resultBar.className = 'result-bar win';
         showHint('恭喜！赢得 ' + totalWin + ' 金币！', 'win');
@@ -568,8 +928,10 @@ function finishRoll(results) {
         showHint('很遗憾，再试一次吧', 'lose');
     }
 
-    updateUI();
+    // 重置下注数据（游戏结束）
     bets = [0, 0, 0, 0, 0, 0];
+    betAmounts = [0, 0, 0, 0, 0, 0];
+    
     updateUI();
     // updateUI 在 bets 清零后会禁用按钮，但结算后用户需要重新下注，按钮必须可用
     document.getElementById('rollBtn').disabled = false;
@@ -601,4 +963,12 @@ function spawnCoins() {
 }
 
 // -------------- 初始化 --------------
-updateUI();
+// 初始化玩家数据（实际应由服务器下发，此处暂时使用默认值）
+// 测试时可修改 isRecharge 来切换付费/未付费状态
+initPlayerData({
+    initialAmount: 1000,
+    isRecharge: true  // false=未付费，true=已付费
+});
+
+// 测试用：可通过控制台调用 setRechargeStatus(true/false) 切换状态
+// 例如：setRechargeStatus(false) 切换为未付费玩家
