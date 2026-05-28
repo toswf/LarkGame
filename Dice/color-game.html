@@ -350,6 +350,15 @@
             font-weight: bold;
             color: #fff;
             min-width: 40px;
+            background: transparent;
+            border: none;
+            outline: none;
+            text-align: left;
+            padding: 0;
+            width: auto;
+        }
+        .bet-input-value:focus {
+            border-bottom: 2px solid #0f0;
         }
         .decimal-part {
             font-size: 16px;
@@ -691,7 +700,14 @@
         <div class="bet-amount-row">
             <div class="bet-input">
                 <span class="currency-sign">¥</span>
-                <span class="bet-input-value" id="betAmountDisplay">10</span>
+                <input type="text" 
+                       class="bet-input-value" 
+                       id="betAmountInput" 
+                       value="10"
+                       oninput="onBetAmountInput(this)"
+                       onblur="onBetAmountBlur(this)"
+                       pattern="\d*"
+                       maxlength="10">
                 <span class="decimal-part">.00</span>
                 <div class="bet-arrows">
                     <button onclick="toggleSlider()" class="arrow-btn">▲</button>

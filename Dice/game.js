@@ -501,7 +501,9 @@ function lerpAngleDeg(a, b, t) {
 /** 更新金额显示 */
 function updateBetAmountDisplay() {
     const display = document.getElementById('betAmountDisplay');
+    const input = document.getElementById('betAmountInput');
     if (display) display.textContent = _betAmount;
+    if (input) input.value = _betAmount;
 }
 
 /** 设置投注金额 */
@@ -566,6 +568,52 @@ function showToast(message) {
 
 /** 拖动条状态 */
 let _sliderVisible = false;
+
+/** 输入框输入时处理（只允许整数） */
+function onBetAmountInput(input) {
+    // 只保留数字，遇到小数点就停止
+    const value = input.value.split('.')[0].replace(/\D/g, '');
+    input.value = value;
+}
+
+/** 输入框失焦时处理（验证最大最小值） */
+function onBetAmountBlur(input) {
+    const config = getBetConfig();
+    let value = parseInt(input.value) || 0;
+    
+    // 验证最小值
+    if (value < config.minBetAmount) {
+        value = config.minBetAmount;
+        if (!isRechargeUser) {
+            showToast(`The minimum bet amount for un recharge user is ${config.minBetAmount}`);
+        }
+    }
+    
+    // 验证最大值
+    if (value > config.maxBetAmount) {
+        value = config.maxBetAmount;
+        if (!isRechargeUser) {
+            showToast(`The maximum bet amount for un recharge user is ${config.maxBetAmount}`);
+        }
+    }
+    
+    // 验证余额
+    if (value > balance) {
+        value = balance;
+        showToast('Balance is not enough.');
+    }
+    
+    // 向下取整到十位
+    value = Math.floor(value / 10) * 10;
+    
+    // 确保不低于最小值
+    if (value < config.minBetAmount) {
+        value = config.minBetAmount;
+    }
+    
+    setBetAmount(value);
+    updateSliderPosition();
+}
 
 /** 切换拖动条显示/隐藏 */
 function toggleSlider() {
@@ -682,7 +730,7 @@ function adjustBetAmount(factor) {
         // 2x：翻倍
         newVal = Math.min(config.maxBetAmount, _betAmount * 2);
     } else {
-        // 上下箭头：+1 或 -1
+        // 上下箭头：+1 或 -1（这个逻辑不会被用到，因为箭头现在是 toggleSlider）
         newVal = Math.max(config.minBetAmount, _betAmount + factor);
     }
     
@@ -693,6 +741,11 @@ function adjustBetAmount(factor) {
     }
     
     setBetAmount(newVal);
+    
+    // 如果拖动条打开，同步更新滑块位置
+    if (_sliderVisible) {
+        updateSliderPosition();
+    }
 }
 
 /** 设置投注数量（∞、10、100） */
