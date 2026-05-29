@@ -147,11 +147,11 @@ function setRechargeStatus(isRecharge) {
     console.log('当前配置：', betConfig);
 }
 
-// 三个骰子的6面色顺序（各不相同）
+// 三个骰子的 6 面色顺序（统一相同）
 const DICE_FACES = [
     [0, 1, 2, 3, 4, 5], // dice0: 颜色→面 直接对应
-    [1, 0, 3, 2, 5, 4], // dice1
-    [2, 3, 4, 5, 0, 1], // dice2
+    [0, 1, 2, 3, 4, 5], // dice1: 与 dice0 相同
+    [0, 1, 2, 3, 4, 5], // dice2: 与 dice0 相同
 ];
 
 // 面索引 → 骰子停止时需要旋转到的角度（deg），使该面朝前（朝向相机）
