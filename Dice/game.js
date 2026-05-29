@@ -147,21 +147,26 @@ function setRechargeStatus(isRecharge) {
     console.log('当前配置：', betConfig);
 }
 
-// 三个骰子的 6 面色顺序（统一相同）
+// 三个骰子的 6 面色顺序（统一相同，标准骰子布局）
+// 面顺序：front, back, right, left, top, bottom
+// 标准骰子：相对面之和为 7 (1+6, 2+5, 3+4)
 const DICE_FACES = [
-    [0, 1, 2, 3, 4, 5], // dice0: 颜色→面 直接对应
+    [0, 1, 2, 3, 4, 5], // dice0: front=黄色，back=白色，right=粉色，left=蓝色，top=橙色，bottom=绿色
     [0, 1, 2, 3, 4, 5], // dice1: 与 dice0 相同
     [0, 1, 2, 3, 4, 5], // dice2: 与 dice0 相同
 ];
 
 // 面索引 → 骰子停止时需要旋转到的角度（deg），使该面朝前（朝向相机）
+// 让指定面朝上（朝向摄像机）所需旋转的角度
+// CSS 中骰子面初始方向：front 朝前 (Z+)，top 朝上 (Y-)，right 朝右 (X+)
+// 要让某个面朝上，需要旋转骰子让该面朝向摄像机（Z+ 方向）
 const FACE_TARGET_ANGLES = [
-    { rx:   0, ry:   0 }, // 0=front  → 不转
-    { rx:   0, ry: 180 }, // 1=back   → Y 转180°
-    { rx:   0, ry: -90 }, // 2=right  → Y 转-90°
-    { rx:   0, ry:  90 }, // 3=left   → Y 转90°
-    { rx:  90, ry:   0 }, // 4=top    → X 转90°
-    { rx: -90, ry:   0 }, // 5=bottom → X 转-90°
+    { rx:   0, ry:   0 }, // 0=front  → 不旋转，已经朝摄像机
+    { rx:   0, ry: 180 }, // 1=back   → Y 轴旋转 180°，让背面朝摄像机
+    { rx:   0, ry:  90 }, // 2=right  → Y 轴旋转 90°，让右面朝摄像机（CSS 初始是 +90°朝右，需要 -90°才能朝前，但旋转方向相反所以是 +90°）
+    { rx:   0, ry: -90 }, // 3=left   → Y 轴旋转 -90°，让左面朝摄像机
+    { rx: -90, ry:   0 }, // 4=top    → X 轴旋转 -90°，让顶面朝摄像机（CSS 初始是 +90°朝上，需要 -90°才能朝前）
+    { rx:  90, ry:   0 }, // 5=bottom → X 轴旋转 90°，让底面朝摄像机
 ];
 
 // ============================================================
@@ -501,9 +506,7 @@ function lerpAngleDeg(a, b, t) {
 
 /** 更新金额显示 */
 function updateBetAmountDisplay() {
-    const display = document.getElementById('betAmountDisplay');
     const input = document.getElementById('betAmountInput');
-    if (display) display.textContent = _betAmount;
     if (input) input.value = _betAmount;
 }
 
@@ -515,7 +518,7 @@ function setBetAmount(val) {
     if (val < config.minBetAmount) {
         val = config.minBetAmount;
         if (!isRechargeUser) {
-            showToast(`The minimum bet amount for un recharge user is ${config.minBetAmount}`);
+            showToast(`Min bet: ${config.minBetAmount}`);
         }
     }
     
@@ -523,7 +526,7 @@ function setBetAmount(val) {
     if (val > config.maxBetAmount) {
         val = config.maxBetAmount;
         if (!isRechargeUser) {
-            showToast(`The maximum bet amount for un recharge user is ${config.maxBetAmount}`);
+            showToast(`Max bet: ${config.maxBetAmount}`);
         }
     }
     
@@ -604,7 +607,7 @@ function onBetAmountBlur(input) {
     if (value < config.minBetAmount) {
         value = config.minBetAmount;
         if (!isRechargeUser) {
-            showToast(`The minimum bet amount for un recharge user is ${config.minBetAmount}`);
+            showToast(`Min bet: ${config.minBetAmount}`);
         }
     }
     
@@ -612,14 +615,14 @@ function onBetAmountBlur(input) {
     if (value > config.maxBetAmount) {
         value = config.maxBetAmount;
         if (!isRechargeUser) {
-            showToast(`The maximum bet amount for un recharge user is ${config.maxBetAmount}`);
+            showToast(`Max bet: ${config.maxBetAmount}`);
         }
     }
     
     // 验证余额
     if (value > balance) {
         value = balance;
-        showToast('Balance is not enough.');
+        showToast('Insufficient balance.');
     }
     
     // 向下取整到十位
@@ -693,7 +696,7 @@ function toggleSlider() {
     
     // 未付费玩家不能拖动
     if (!isRechargeUser) {
-        showToast(`The minimum bet amount for un recharge user is ${config.minBetAmount}`);
+        showToast(`Min bet: ${config.minBetAmount}`);
         return;
     }
     
@@ -790,7 +793,7 @@ function adjustBetAmount(factor) {
     
     // 未付费玩家禁用所有调整按钮
     if (!isRechargeUser) {
-        showToast(`The ${factor === 0.5 ? 'minimum' : 'maximum'} bet amount for un recharge user is ${factor === 0.5 ? config.minBetAmount : config.maxBetAmount}`);
+        showToast(`Min: ${config.minBetAmount}, Max: ${config.maxBetAmount}`);
         return;
     }
     
@@ -809,7 +812,7 @@ function adjustBetAmount(factor) {
     // 检查是否超过最大限制
     if (newVal > config.maxBetAmount) {
         newVal = config.maxBetAmount;
-        showToast(`The maximum bet amount for un recharge user is ${config.maxBetAmount}`);
+        showToast(`Max bet: ${config.maxBetAmount}`);
     }
     
     setBetAmount(newVal);
@@ -847,7 +850,7 @@ function addBet(btn) {
         const expectedCost = singleBetAmount * _lockedBetAmount;
         
         if (cost !== expectedCost) {
-            showToast(`This round's bet amount is locked at ${_lockedBetAmount}.00. Please use the same amount for all bets.`);
+            showToast(`Bet amount locked at ${_lockedBetAmount}.00. Use same amount for all bets.`);
             return;
         }
     }
@@ -858,7 +861,7 @@ function addBet(btn) {
         const betColorsCount = bets.filter(b => b > 0).length;
         // 如果这个颜色还没下注，且已达到最大次数限制
         if (bets[idx] === 0 && betColorsCount >= config.maxBetTimes) {
-            showToast(`Your maximum times of bets is ${config.maxBetTimes}`);
+            showToast(`Max ${config.maxBetTimes} colors per round.`);
             return;
         }
     }
@@ -1031,10 +1034,6 @@ function finishRoll(results) {
     document.getElementById('rollBtn').disabled = false;
     document.getElementById('clearBtn').disabled = false;
     document.querySelectorAll('.color-btn').forEach(b => b.disabled = false);
-
-    // 调试：打印骰子结果
-    console.log('骰子结果 (颜色索引):', results);
-    console.log('骰子结果 (颜色名称):', results.map(r => COLORS[r].label));
     
     const resultBar = document.getElementById('resultBar');
     let totalWin = 0;
@@ -1052,7 +1051,6 @@ function finishRoll(results) {
             totalWin += win;
             const mult = mc === 1 ? 2 : mc === 2 ? 3 : 16;
             winMessages.push(COLORS[ci].label + '中' + mc + '个 x' + mult);
-            console.log(`颜色 ${COLORS[ci].label} (索引${ci}): 下注${bet}, 命中${mc}个, 赢得${win}`);
         }
     }
 
@@ -1101,8 +1099,7 @@ function finishRoll(results) {
     _lockedBetAmount = null;  // 重置本局锁定的下注金额
     
     updateUI();
-    // updateUI 在 bets 清零后会禁用按钮，但结算后用户需要重新下注，按钮必须可用
-    document.getElementById('rollBtn').disabled = false;
+    // 结算后用户需要重新下注，updateUI() 会根据 bets 状态正确控制按钮
 
     // 延迟清理骰子（保存 ID 以便下次 rollDice 时取消，防止误清除新骰子）
     _cleanupTimer = setTimeout(() => {
